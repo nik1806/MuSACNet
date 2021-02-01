@@ -21,6 +21,8 @@ from dataloader import KITTILoader as DA
 
 from models import *
 
+from torchsummary import summary # for model summary
+
 parser = argparse.ArgumentParser(description='PSMNet')
 parser.add_argument('--maxdisp', type=int ,default=192,
 					help='maxium disparity')
@@ -32,7 +34,9 @@ parser.add_argument('--datapath', default='/media/jiaren/ImageNet/data_scene_flo
 					help='datapath')
 parser.add_argument('--epochs', type=int, default=300,
 					help='number of epochs to train')
-parser.add_argument('--loadmodel', default='./trained/submission_model.tar',
+# parser.add_argument('--loadmodel', default='./trained/submission_model.tar',
+
+parser.add_argument('--loadmodel', default=None,
 					help='load model')
 parser.add_argument('--savemodel', default='./',
 					help='save model')
@@ -97,6 +101,9 @@ def train(imgL,imgR,disp_L):
 		optimizer.zero_grad()
 		
 		if args.model == 'stackhourglass':
+			# print(imgL.size())
+			# summary(model, imgL, imgR)
+			# exit()
 			output1, output2, output3 = model(imgL,imgR)
 			output1 = torch.squeeze(output1,1)
 			output2 = torch.squeeze(output2,1)
