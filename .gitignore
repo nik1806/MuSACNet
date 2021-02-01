@@ -1,0 +1,3 @@
+*.tar
+*.png
+__pycache__/
