@@ -22,6 +22,10 @@ from dataloader import KITTILoader as DA
 from models import *
 
 from torchsummary import summary # for model summary
+from torch.utils.tensorboard import SummaryWriter # tensorboard setup
+from torchvision.utils import make_grid
+
+writer = SummaryWriter('runs/SAPN_exp3') # log_dir 
 
 parser = argparse.ArgumentParser(description='PSMNet')
 parser.add_argument('--maxdisp', type=int ,default=192,
@@ -34,8 +38,9 @@ parser.add_argument('--datapath', default='/media/jiaren/ImageNet/data_scene_flo
 					help='datapath')
 parser.add_argument('--epochs', type=int, default=300,
 					help='number of epochs to train')
+parser.add_argument('--lr', type=float, default=0.001,
+					help='Highest LR')
 # parser.add_argument('--loadmodel', default='./trained/submission_model.tar',
-
 parser.add_argument('--loadmodel', default=None,
 					help='load model')
 parser.add_argument('--savemodel', default='./',
@@ -44,6 +49,7 @@ parser.add_argument('--no-cuda', action='store_true', default=False,
 					help='enables CUDA training')
 parser.add_argument('--seed', type=int, default=1, metavar='S',
 					help='random seed (default: 1)')
+
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
 torch.manual_seed(args.seed)
@@ -82,6 +88,8 @@ if args.loadmodel is not None:
 
 print('Number of model parameters: {}'.format(sum([p.data.nelement() for p in model.parameters()])))
 
+# LR = args.lr
+
 optimizer = optim.Adam(model.parameters(), lr=0.1, betas=(0.9, 0.999))
 
 def train(imgL,imgR,disp_L):
@@ -108,11 +116,11 @@ def train(imgL,imgR,disp_L):
 			output1 = torch.squeeze(output1,1)
 			output2 = torch.squeeze(output2,1)
 			output3 = torch.squeeze(output3,1)
-			loss = 0.5*F.smooth_l1_loss(output1[mask], disp_true[mask], size_average=True) + 0.7*F.smooth_l1_loss(output2[mask], disp_true[mask], size_average=True) + F.smooth_l1_loss(output3[mask], disp_true[mask], size_average=True) 
+			loss = 0.5*F.smooth_l1_loss(output1[mask], disp_true[mask], reduction='mean') + 0.7*F.smooth_l1_loss(output2[mask], disp_true[mask], reduction='mean') + F.smooth_l1_loss(output3[mask], disp_true[mask], reduction='mean') 
 		elif args.model == 'basic':
 			output = model(imgL,imgR)
 			output = torch.squeeze(output3,1)
-			loss = F.smooth_l1_loss(output3[mask], disp_true[mask], size_average=True)
+			loss = F.smooth_l1_loss(output3[mask], disp_true[mask], reduction='mean')
 
 		loss.backward()
 		optimizer.step()
@@ -141,11 +149,25 @@ def test(imgL,imgR,disp_true):
 		return 1-(float(torch.sum(correct))/float(len(index[0])))
 
 def adjust_learning_rate(optimizer, epoch):
+	# if epoch <= 25:
+	#    lr = 0.0001
+	# elif epoch <= 75:
+	# 	lr = 0.003
+	# elif epoch > 75:
+	#    lr = 0.0001
+
+	# if epoch <= args.epochs / 2: # LR increasing from LR/10 to LR
+		# lr = (LR/10) + (epoch -1)*9*LR/(5*(args.epochs - 1))
+	# else: # LR decreasing from LR to LR/10
+		# lr = LR + (args.epochs - epoch)*9*LR/(5*args.epochs)
+	# writer.add_scalar("Learning rate", lr, epoch)
+
 	if epoch <= 200:
-	   lr = 0.001
+		lr = 0.0001
 	else:
-	   lr = 0.0001
-	print(lr)
+		lr = 0.00003
+
+	print("Learning rate:", lr)
 	for param_group in optimizer.param_groups:
 		param_group['lr'] = lr
 
@@ -163,12 +185,13 @@ def main():
 			   ## training ##
 		for batch_idx, (imgL_crop, imgR_crop, disp_crop_L) in enumerate(TrainImgLoader):
 			start_time = time.time() 
-
 			loss = train(imgL_crop,imgR_crop, disp_crop_L)
 			print('Iter %d training loss = %.3f , time = %.2f' %(batch_idx, loss, time.time() - start_time))
 			total_train_loss += loss
 		print('epoch %d total training loss = %.3f' %(epoch, total_train_loss/len(TrainImgLoader)))
-	   
+		# tracking model training
+		writer.add_scalar("Loss/train", total_train_loss/len(TrainImgLoader), epoch)
+
 			   ## Test ##
 
 		for batch_idx, (imgL, imgR, disp_L) in enumerate(TestImgLoader):
@@ -176,7 +199,8 @@ def main():
 			print('Iter %d 3-px error in val = %.3f' %(batch_idx, test_loss*100))
 			total_test_loss += test_loss
 
-
+		# track
+		writer.add_scalar("Loss/evaluation", total_test_loss/len(TestImgLoader)*100, epoch)
 		print('epoch %d total 3-px error in val = %.3f' %(epoch, total_test_loss/len(TestImgLoader)*100))
 		if total_test_loss/len(TestImgLoader)*100 > max_acc:
 			max_acc = total_test_loss/len(TestImgLoader)*100
@@ -193,6 +217,21 @@ def main():
 		}, savefilename)
 
 		print('full finetune time = %.2f HR' %((time.time() - start_full_time)/3600))
+	
+	# write an image to our Tensorboard
+	# dataiter = iter(TrainImgLoader)
+	# imgLT, imgRT, disp_LT = dataiter.next()
+	# imgLT   = Variable(torch.FloatTensor(imgLT))
+	# imgRT   = Variable(torch.FloatTensor(imgRT))   
+	# img_gridLT = make_grid(imgLT)
+	# img_gridRT = make_grid(imgRT)
+	# writer.add_image('KITII_image_left', img_gridLT)
+	# writer.add_image('KITII_image_right', img_gridLT)
+
+	# inspect model using Tensorboard
+	# writer.add_graph(model, (imgLT, imgRT))
+	writer.close()
+
 	print(max_epo)
 	print(max_acc)
 
