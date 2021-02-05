@@ -25,7 +25,9 @@ from torchsummary import summary # for model summary
 from torch.utils.tensorboard import SummaryWriter # tensorboard setup
 from torchvision.utils import make_grid
 
-writer = SummaryWriter('runs/SAPN_exp3') # log_dir 
+from models.SAStereonet import SAStereonet
+
+writer = SummaryWriter('runs/SAHN_exp12_base2') # log_dir 
 
 parser = argparse.ArgumentParser(description='PSMNet')
 parser.add_argument('--maxdisp', type=int ,default=192,
@@ -38,8 +40,8 @@ parser.add_argument('--datapath', default='/media/jiaren/ImageNet/data_scene_flo
 					help='datapath')
 parser.add_argument('--epochs', type=int, default=300,
 					help='number of epochs to train')
-parser.add_argument('--lr', type=float, default=0.001,
-					help='Highest LR')
+parser.add_argument('--lr', type=float, default=0.1,
+					help='current LR')
 # parser.add_argument('--loadmodel', default='./trained/submission_model.tar',
 parser.add_argument('--loadmodel', default=None,
 					help='load model')
@@ -65,16 +67,18 @@ all_left_img, all_right_img, all_left_disp, test_left_img, test_right_img, test_
 
 TrainImgLoader = torch.utils.data.DataLoader(
 		 DA.myImageFloder(all_left_img,all_right_img,all_left_disp, True), 
-		 batch_size= 2, shuffle= True, num_workers= 0, drop_last=False)
+		 batch_size= 4, shuffle= True, num_workers= 0, drop_last=False)
 
 TestImgLoader = torch.utils.data.DataLoader(
 		 DA.myImageFloder(test_left_img,test_right_img,test_left_disp, False), 
-		 batch_size= 2, shuffle= False, num_workers= 0, drop_last=False)
+		 batch_size= 4, shuffle= False, num_workers= 0, drop_last=False)
 
 if args.model == 'stackhourglass':
 	model = stackhourglass(args.maxdisp)
 elif args.model == 'basic':
 	model = basic(args.maxdisp)
+elif args.model == 'SASN':
+	model = SAStereonet(feat_num=128, feat_height=32, feat_width=128) # 128, 32, 128
 else:
 	print('no model')
 
@@ -88,9 +92,12 @@ if args.loadmodel is not None:
 
 print('Number of model parameters: {}'.format(sum([p.data.nelement() for p in model.parameters()])))
 
-# LR = args.lr
+LR = args.lr
 
-optimizer = optim.Adam(model.parameters(), lr=0.1, betas=(0.9, 0.999))
+# if args.model == 'SASN':
+	# optimizer = optim.SGD(model.parameters(), lr=LR, momentum=0.99, weight_decay=0.0005) #, weight_decay=0.0005
+# else:
+optimizer = optim.Adam(model.parameters(), lr=LR, betas=(0.9, 0.999), weight_decay=0.0005) #, weight_decay=0.0005
 
 def train(imgL,imgR,disp_L):
 		model.train()
@@ -119,8 +126,18 @@ def train(imgL,imgR,disp_L):
 			loss = 0.5*F.smooth_l1_loss(output1[mask], disp_true[mask], reduction='mean') + 0.7*F.smooth_l1_loss(output2[mask], disp_true[mask], reduction='mean') + F.smooth_l1_loss(output3[mask], disp_true[mask], reduction='mean') 
 		elif args.model == 'basic':
 			output = model(imgL,imgR)
-			output = torch.squeeze(output3,1)
-			loss = F.smooth_l1_loss(output3[mask], disp_true[mask], reduction='mean')
+			output = torch.squeeze(output,1)
+			# summary(model, imgL, imgR)
+			# print(output.shape)
+			# exit()
+			loss = F.smooth_l1_loss(output[mask], disp_true[mask], reduction='mean')
+		elif args.model == 'SASN':
+			output = model(imgL,imgR)
+			output = torch.squeeze(output,1)
+			# summary(model, imgL, imgR)
+			# print(output.shape)
+			# exit()
+			loss = F.smooth_l1_loss(output[mask], disp_true[mask], reduction='mean')
 
 		loss.backward()
 		optimizer.step()
@@ -136,6 +153,9 @@ def test(imgL,imgR,disp_true):
 
 		with torch.no_grad():
 			output3 = model(imgL,imgR)
+			# summary(model, imgL, imgR)
+			# print(output3.shape)
+			# exit()
 
 		pred_disp = output3.data.cpu().squeeze(1)
 
@@ -163,9 +183,9 @@ def adjust_learning_rate(optimizer, epoch):
 	# writer.add_scalar("Learning rate", lr, epoch)
 
 	if epoch <= 200:
-		lr = 0.0001
+		lr = LR #0.0001
 	else:
-		lr = 0.00003
+		lr = LR/10 #0.00003
 
 	print("Learning rate:", lr)
 	for param_group in optimizer.param_groups:
@@ -188,6 +208,8 @@ def main():
 			loss = train(imgL_crop,imgR_crop, disp_crop_L)
 			print('Iter %d training loss = %.3f , time = %.2f' %(batch_idx, loss, time.time() - start_time))
 			total_train_loss += loss
+			# break
+
 		print('epoch %d total training loss = %.3f' %(epoch, total_train_loss/len(TrainImgLoader)))
 		# tracking model training
 		writer.add_scalar("Loss/train", total_train_loss/len(TrainImgLoader), epoch)

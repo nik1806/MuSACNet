@@ -4,13 +4,17 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+
+    
+
+
         {
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",
             "program": "finetune.py",
             "console": "integratedTerminal",
-            "args": ["--datapath", "dataset/data_scene_flow_2015/training/", "--epochs", "1", "--loadmodel", "pretrained_model_KITTI2015.tar"]
+            "args": ["--datapath", "dataset/data_scene_flow_2015/training/", "--epochs", "1", "--model", "SASN"] //"--loadmodel", "pretrained_model_KITTI2015.tar"
         }
     ]
 }

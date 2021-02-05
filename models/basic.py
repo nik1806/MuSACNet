@@ -6,13 +6,14 @@ from torch.autograd import Variable
 import torch.nn.functional as F
 import math
 from .submodule import *
+from models.SAN import SAN
 
 class PSMNet(nn.Module):
     def __init__(self, maxdisp):
         super(PSMNet, self).__init__()
         self.maxdisp = maxdisp
         self.feature_extraction = feature_extraction()
-
+        # self.feature_extraction = SAN(feat_num=128, feat_width=32, feat_height=16)
 ########
         self.dres0 = nn.Sequential(convbn_3d(64, 32, 3, 1, 1),
                                      nn.ReLU(inplace=True),

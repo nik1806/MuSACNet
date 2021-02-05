@@ -62,7 +62,7 @@ class MeanFieldUpdate(nn.Module):
         return y_S
 
 
-class decoder(nn.Module):
+class back(nn.Module):
     '''
         Reproduce the size of image
     '''
@@ -71,29 +71,40 @@ class decoder(nn.Module):
         super().__init__()
         # produce the output
         self.pred_1 = nn.ConvTranspose2d(feat_num, feat_num // 2, kernel_size=4, stride=2, padding=1) # op - 256
-        self.pred_1_relu = nn.ReLU(inplace=True)
+        self.bn1 = nn.BatchNorm2d(feat_num // 2)
+        # self.pred_1_relu = nn.ReLU(inplace=True)
+        self.pred_1_relu = nn.SELU(inplace=True)
         self.pred_2 = nn.ConvTranspose2d(feat_num // 2, feat_num // 4, kernel_size=4, stride=2, padding=1) # op -128
-        self.pred_2_relu = nn.ReLU(inplace=True)
-        self.pred_3 = nn.Conv2d(feat_num // 4, 1, kernel_size=3, stride=1, padding=1) #op - 1
+        self.bn2 = nn.BatchNorm2d(feat_num // 4)
+        self.pred_2_relu = nn.SELU(inplace=True)
+        self.pred_3 = nn.Conv2d(feat_num // 4, feat_num // 8, kernel_size=3, stride=1, padding=1) #op - 1 
+        self.bn3 = nn.BatchNorm2d(feat_num // 8)
+        self.pred_3_relu = nn.SELU(inplace=True)
+        self.pred_4 = nn.Conv2d(feat_num // 8, 1, kernel_size=3, stride=1, padding=1) #op - 1 
+        
 
     def forward(self, x):
         # y_S = res5c # skipping mean field update; res5c is last output feature map
         pred = self.pred_1(x) # from feat_num to 1 channels
-        pred = self.pred_1_relu(pred)
+        pred = self.bn1(pred) # extra
+        pred = self.pred_1_relu(pred) # SELU
         pred = self.pred_2(pred)
-        pred = self.pred_2_relu(pred)
+        pred = self.bn2(pred) # extra
+        pred = self.pred_2_relu(pred) # SELU
         pred = self.pred_3(pred)
-        
+        pred = self.pred_3_relu(self.bn3(pred))
+        pred = self.pred_4(pred)
+
         # print(pred.size())
         if self.training:
-            pred = nn.functional.interpolate(pred, size=(256, 512), mode='bilinear', align_corners=True)
+            pred = nn.functional.interpolate(pred, size=(256, 1024), mode='bilinear', align_corners=True) # 256, 512
         else:
             pred = nn.functional.interpolate(pred, size=(368, 1232), mode='bilinear', align_corners=True)
 
         return pred
 
 
-class encoder(nn.Module):
+class front(nn.Module):
     """
     Based on ResNet-50
     Perform feature selection with MFU (based on CRF)
@@ -119,10 +130,12 @@ class encoder(nn.Module):
         # generating multi-scale features with the same dimension
         # in paper,  type = 'gaussian'
         self.res4f_dec_1 = nn.ConvTranspose2d(256, feat_num, kernel_size=4, stride=2, padding=1) # 1024 last val
+        # self.res4f_dec_1_relu = nn.ReLU(inplace=True)
         self.res4f_dec_1_relu = nn.ReLU(inplace=True)
 
         # in paper,  type = 'gaussian'
         self.res5c_dec_1 = nn.ConvTranspose2d(512, feat_num, kernel_size=8, stride=4, padding=2) # 2048 last val - resnet50
+        # self.res5c_dec_1_relu = nn.ReLU(inplace=True)
         self.res5c_dec_1_relu = nn.ReLU(inplace=True)
 
         self.res4f_dec = nn.UpsamplingBilinear2d(size=(feat_height, feat_width))
@@ -134,7 +147,7 @@ class encoder(nn.Module):
         # self.prediction_4f = nn.Conv2d(feat_num, out_channels=1, kernel_size=3, stride=1, padding=1)
         # self.prediction_5c = nn.Conv2d(feat_num, out_channels=1, kernel_size=3, stride=1, padding=1)
 
-        # # the first meanfield updating
+        # # # the first meanfield updating
         self.meanFieldUpdate1_1 = MeanFieldUpdate(feat_num, feat_num, feat_num)
         self.meanFieldUpdate1_2 = MeanFieldUpdate(feat_num, feat_num, feat_num)
         self.meanFieldUpdate1_3 = MeanFieldUpdate(feat_num, feat_num, feat_num)
@@ -215,7 +228,7 @@ class encoder(nn.Module):
         # pred_4f = self.prediction_4f(res4f)
         # pred_5c = self.prediction_5c(res5c)
 
-        # five meanfield updating
+        # # five meanfield updating
         y_S = self.meanFieldUpdate1_1(res3d, res5c)
         y_S = self.meanFieldUpdate1_2(res4f, y_S)
         y_S = self.meanFieldUpdate1_3(res5c, y_S)
@@ -235,6 +248,7 @@ class encoder(nn.Module):
         y_S = self.meanFieldUpdate5_1(res3d, y_S)
         y_S = self.meanFieldUpdate5_2(res4f, y_S)
         y_S = self.meanFieldUpdate5_3(res5c, y_S)
+        # y_S = res5c
 
         return y_S
 
@@ -245,8 +259,8 @@ class SAStereonet(nn.Module):
 
     def __init__(self, in_channels=3, feat_num=512, feat_width=80, feat_height=24, pretrained=True):
         super().__init__()
-        self.feature_extractor = encoder(in_channels, feat_num, feat_width, feat_height, pretrained)
-        self.decoder = decoder(2*feat_num) # double number of channel layers
+        self.feature_extractor = front(in_channels, feat_num, feat_width, feat_height, pretrained)
+        self.deconv = back(2*feat_num) # double number of channel layers
 
     def forward(self, leftimg, rightimg):
         feat_right = self.feature_extractor(rightimg)
@@ -254,6 +268,6 @@ class SAStereonet(nn.Module):
         
         final_feat = torch.cat((feat_left, feat_right), 1) # concatenate along feature layers dim
 
-        pred = self.decoder(final_feat)
+        pred = self.deconv(final_feat)
 
         return pred

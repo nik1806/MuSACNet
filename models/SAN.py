@@ -108,30 +108,30 @@ class SAN(nn.Module):
         self.prediction_4f = nn.Conv2d(feat_num, out_channels=1, kernel_size=3, stride=1, padding=1)
         self.prediction_5c = nn.Conv2d(feat_num, out_channels=1, kernel_size=3, stride=1, padding=1)
 
-        # the first meanfield updating
-        self.meanFieldUpdate1_1 = MeanFieldUpdate(feat_num, feat_num, feat_num)
-        self.meanFieldUpdate1_2 = MeanFieldUpdate(feat_num, feat_num, feat_num)
-        self.meanFieldUpdate1_3 = MeanFieldUpdate(feat_num, feat_num, feat_num)
+        # # the first meanfield updating
+        # self.meanFieldUpdate1_1 = MeanFieldUpdate(feat_num, feat_num, feat_num)
+        # self.meanFieldUpdate1_2 = MeanFieldUpdate(feat_num, feat_num, feat_num)
+        # self.meanFieldUpdate1_3 = MeanFieldUpdate(feat_num, feat_num, feat_num)
 
-        # the second meanfield updating
-        self.meanFieldUpdate2_1 = MeanFieldUpdate(feat_num, feat_num, feat_num)
-        self.meanFieldUpdate2_2 = MeanFieldUpdate(feat_num, feat_num, feat_num)
-        self.meanFieldUpdate2_3 = MeanFieldUpdate(feat_num, feat_num, feat_num)
+        # # the second meanfield updating
+        # self.meanFieldUpdate2_1 = MeanFieldUpdate(feat_num, feat_num, feat_num)
+        # self.meanFieldUpdate2_2 = MeanFieldUpdate(feat_num, feat_num, feat_num)
+        # self.meanFieldUpdate2_3 = MeanFieldUpdate(feat_num, feat_num, feat_num)
 
-        # the third meanfield updating
-        self.meanFieldUpdate3_1 = MeanFieldUpdate(feat_num, feat_num, feat_num)
-        self.meanFieldUpdate3_2 = MeanFieldUpdate(feat_num, feat_num, feat_num)
-        self.meanFieldUpdate3_3 = MeanFieldUpdate(feat_num, feat_num, feat_num)
+        # # the third meanfield updating
+        # self.meanFieldUpdate3_1 = MeanFieldUpdate(feat_num, feat_num, feat_num)
+        # self.meanFieldUpdate3_2 = MeanFieldUpdate(feat_num, feat_num, feat_num)
+        # self.meanFieldUpdate3_3 = MeanFieldUpdate(feat_num, feat_num, feat_num)
 
-        # the fourth meanfield updating
-        self.meanFieldUpdate4_1 = MeanFieldUpdate(feat_num, feat_num, feat_num)
-        self.meanFieldUpdate4_2 = MeanFieldUpdate(feat_num, feat_num, feat_num)
-        self.meanFieldUpdate4_3 = MeanFieldUpdate(feat_num, feat_num, feat_num)
+        # # the fourth meanfield updating
+        # self.meanFieldUpdate4_1 = MeanFieldUpdate(feat_num, feat_num, feat_num)
+        # self.meanFieldUpdate4_2 = MeanFieldUpdate(feat_num, feat_num, feat_num)
+        # self.meanFieldUpdate4_3 = MeanFieldUpdate(feat_num, feat_num, feat_num)
 
-        # the fifth meanfield updating
-        self.meanFieldUpdate5_1 = MeanFieldUpdate(feat_num, feat_num, feat_num)
-        self.meanFieldUpdate5_2 = MeanFieldUpdate(feat_num, feat_num, feat_num)
-        self.meanFieldUpdate5_3 = MeanFieldUpdate(feat_num, feat_num, feat_num)
+        # # the fifth meanfield updating
+        # self.meanFieldUpdate5_1 = MeanFieldUpdate(feat_num, feat_num, feat_num)
+        # self.meanFieldUpdate5_2 = MeanFieldUpdate(feat_num, feat_num, feat_num)
+        # self.meanFieldUpdate5_3 = MeanFieldUpdate(feat_num, feat_num, feat_num)
 
         # produce the output
         self.pred_1 = nn.ConvTranspose2d(feat_num, feat_num // 2, kernel_size=4, stride=2, padding=1) # op - 256
@@ -149,25 +149,25 @@ class SAN(nn.Module):
         self.prediction_4f.apply(weights_init)
         self.prediction_5c.apply(weights_init)
 
-        self.meanFieldUpdate1_1.apply(weights_init)
-        self.meanFieldUpdate1_2.apply(weights_init)
-        self.meanFieldUpdate1_3.apply(weights_init)
+        # self.meanFieldUpdate1_1.apply(weights_init)
+        # self.meanFieldUpdate1_2.apply(weights_init)
+        # self.meanFieldUpdate1_3.apply(weights_init)
 
-        self.meanFieldUpdate2_1.apply(weights_init)
-        self.meanFieldUpdate2_2.apply(weights_init)
-        self.meanFieldUpdate2_3.apply(weights_init)
+        # self.meanFieldUpdate2_1.apply(weights_init)
+        # self.meanFieldUpdate2_2.apply(weights_init)
+        # self.meanFieldUpdate2_3.apply(weights_init)
 
-        self.meanFieldUpdate3_1.apply(weights_init)
-        self.meanFieldUpdate3_2.apply(weights_init)
-        self.meanFieldUpdate3_3.apply(weights_init)
+        # self.meanFieldUpdate3_1.apply(weights_init)
+        # self.meanFieldUpdate3_2.apply(weights_init)
+        # self.meanFieldUpdate3_3.apply(weights_init)
 
-        self.meanFieldUpdate4_1.apply(weights_init)
-        self.meanFieldUpdate4_2.apply(weights_init)
-        self.meanFieldUpdate4_3.apply(weights_init)
+        # self.meanFieldUpdate4_1.apply(weights_init)
+        # self.meanFieldUpdate4_2.apply(weights_init)
+        # self.meanFieldUpdate4_3.apply(weights_init)
 
-        self.meanFieldUpdate5_1.apply(weights_init)
-        self.meanFieldUpdate5_2.apply(weights_init)
-        self.meanFieldUpdate5_3.apply(weights_init)
+        # self.meanFieldUpdate5_1.apply(weights_init)
+        # self.meanFieldUpdate5_2.apply(weights_init)
+        # self.meanFieldUpdate5_3.apply(weights_init)
 
     def forward(self, x):
         x = self.conv1(x)
@@ -199,27 +199,28 @@ class SAN(nn.Module):
         pred_5c = self.prediction_5c(res5c)
 
         # five meanfield updating
-        y_S = self.meanFieldUpdate1_1(res3d, res5c)
-        y_S = self.meanFieldUpdate1_2(res4f, y_S)
-        y_S = self.meanFieldUpdate1_3(res5c, y_S)
+        # y_S = self.meanFieldUpdate1_1(res3d, res5c)
+        # y_S = self.meanFieldUpdate1_2(res4f, y_S)
+        # y_S = self.meanFieldUpdate1_3(res5c, y_S)
 
-        y_S = self.meanFieldUpdate2_1(res3d, y_S)
-        y_S = self.meanFieldUpdate2_2(res4f, y_S)
-        y_S = self.meanFieldUpdate2_3(res5c, y_S)
+        # y_S = self.meanFieldUpdate2_1(res3d, y_S)
+        # y_S = self.meanFieldUpdate2_2(res4f, y_S)
+        # y_S = self.meanFieldUpdate2_3(res5c, y_S)
 
-        y_S = self.meanFieldUpdate3_1(res3d, y_S)
-        y_S = self.meanFieldUpdate3_2(res4f, y_S)
-        y_S = self.meanFieldUpdate3_3(res5c, y_S)
+        # y_S = self.meanFieldUpdate3_1(res3d, y_S)
+        # y_S = self.meanFieldUpdate3_2(res4f, y_S)
+        # y_S = self.meanFieldUpdate3_3(res5c, y_S)
 
-        y_S = self.meanFieldUpdate4_1(res3d, y_S)
-        y_S = self.meanFieldUpdate4_2(res4f, y_S)
-        y_S = self.meanFieldUpdate4_3(res5c, y_S)
+        # y_S = self.meanFieldUpdate4_1(res3d, y_S)
+        # y_S = self.meanFieldUpdate4_2(res4f, y_S)
+        # y_S = self.meanFieldUpdate4_3(res5c, y_S)
 
-        y_S = self.meanFieldUpdate5_1(res3d, y_S)
-        y_S = self.meanFieldUpdate5_2(res4f, y_S)
-        y_S = self.meanFieldUpdate5_3(res5c, y_S)
+        # y_S = self.meanFieldUpdate5_1(res3d, y_S)
+        # y_S = self.meanFieldUpdate5_2(res4f, y_S)
+        # y_S = self.meanFieldUpdate5_3(res5c, y_S)
 
-        pred = self.pred_1(y_S)
+        y_S = res5c # skipping mean field update; res5c is last output feature map
+        pred = self.pred_1(y_S) # from 128 to 32 channels
         pred = self.pred_1_relu(pred)
         pred = self.pred_2(pred)
         pred = self.pred_2_relu(pred)
